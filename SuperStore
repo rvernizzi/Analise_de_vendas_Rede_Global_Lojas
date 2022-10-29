@@ -1,0 +1,174 @@
+# TRABALHO: Ferramentas e Aplicações - Seminário 
+
+Nome: Rafael Vernizzi Oliveira
+Turma: 2
+Professor: Eduardo Camilo
+Curso: MBA em Ciência de Dados 
+Universidade Federal Fluminense
+
+### Conforme sugerido pelo professor Camilo, neste notebook, aplicarei a linguagem Python para analisar alguns dados de marketing de supermercados, usando dados de nosso conjunto de dados. Ao longo deste trabalho de Ferramentas e Aplicações, analisaremos o volume geral de vendas e o lucro, exibiremos a lista de vendas regionais, descobriremos as dez principais commodities em volume de vendas, volume de vendas e lucro e desenharemos o gráfico de proporção de diferentes tipos de clientes.
+
+import csv
+
+with open("superstore_dataset2011-2015.csv","r") as arquivo:
+    arquivo_csv = csv.reader(arquivo, delimiter = ",")
+    for i, linha in enumerate(arquivo_csv):
+        print(linha)
+        
+        import pandas as pd
+
+tabela = pd.read_csv("superstore_dataset2011-2015.csv", encoding='latin-1')
+print(tabela)
+
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
+        
+plt.rcParams['font.sans-serif'] = ['SimHei']
+warnings.filterwarnings('ignore')  
+
+df = pd.read_csv("superstore_dataset2011-2015.csv", encoding='latin-1')
+
+df.rename(columns=lambda x: x.replace(' ', '_').replace('-', '_'), inplace=True)
+df.head()
+
+### Verificando os tipos de dados para cada coluna da base de dados superstore.
+df.dtypes
+
+#### Como podemos ver acima, a maioria deles são do tipo object,'Sales','Profit' e assim por diante são do tipo float e não requerem processamento. No entanto, a data do pedido deve ser do tipo datetime e a conversão de formato é necessária. Para facilitar a pesquisa categórica, adicionaremos as colunas 'Ano'e'Mês' logo após os dados, passando de 24 variáveis (colunas) para 26 variáveis.
+
+df["Order_Date"] = pd.to_datetime(df["Order_Date"])
+df["Ship_Date"] = pd.to_datetime(df["Ship_Date"])
+df['Year'] = df["Order_Date"].dt.year
+df['Month'] = df['Order_Date'].values.astype('datetime64[M]')
+df.head()
+
+### Verificando se há linhas ou colunas com mais valores ausentes.
+
+df.isnull().sum()
+
+## Podemos notar que a parte que falta é 'Postal_Code', esta coluna representa a informação do código postal, visto não possuir muito efeito em nossa análise, pode ser deletada diretamente.
+
+df.drop(["Postal_Code"], axis=1, inplace=True)
+
+df.head()
+
+## Conforme visto acima, reduzimos uma coluna, passando de 26 variáveis para 25 variáveis 
+
+df.duplicated().sum() # Verificando se há duplicatas ou outliers.
+
+## Não foram detectados valores duplicados e outliers (acima), portanto não precisamos tratar os dados para essa finalidade.
+
+## ANALISE DOS DADOS
+
+df1=df[['Order_Date','Sales','Profit','Year','Month']]
+df1 # Aqui imprimimos as vendas X lucratividades pela data de sua realização.
+
+### Lucratividade por região (Gráfico de colunas)
+
+df.shape
+df['Market'].value_counts()
+Customers_market = pd.DataFrame({'Count' : df.groupby(["Market","Customer_Name"]).size()}).reset_index()
+Customers_market.shape
+
+### "Mercado" x "nº Clientes"
+
+sns.barplot(x = "Market",     # Os dados são agrupados por esta variável
+             y= "Count",    # Agregado por esta variável
+             data=Customers_market
+             )
+sns.countplot("Market",        # variável cuja distribuição é de interesse
+                data = Customers_market)            
+                
+                
+df1.groupby('Year')['Month'].value_counts() ## Realizando agrupamento por estatísticas e somar De acordo com o 'Ano', 'Mês'. 
+
+sales=df1.groupby(['Year','Month']).sum()
+sales
+
+year_2011 = sales.loc[(2011,slice(None)),:].reset_index()
+year_2012 = sales.loc[(2013,slice(None)),:].reset_index()
+year_2013 = sales.loc[(2013,slice(None)),:].reset_index()
+year_2014 = sales.loc[(2014,slice(None)),:].reset_index()
+year_2011
+
+## Acima foram divididos os dados em uma tabela a cada ano
+
+Profit=pd.concat([year_2011['Profit'],year_2012['Profit'],year_2013['Profit'],year_2014['Profit']],axis=1)
+Profit
+
+## Crida uma demonstração de lucro (Profit) pegando os dados de lucro anual dos dados gerais
+
+Sum=Profit.sum()
+Sum.plot(kind='barh')
+
+### Utilizei um gráfico de barras visualizar a lucratividade por região
+
+###Como trata-se de um supermercado atuante a nível global e os mercados existem em diferentes regiões, visualizamos tais vendas entre as regiões. Consideramos: O eixo X representando 'Mercado' , o eixo y representando 'Vendas' e a legenda como 'Ano'.
+
+sale_Products = df.groupby(["Product_Name"])['Quantity'].aggregate(np.sum).reset_index().sort_values('Quantity',ascending = False).head(20)
+sns.barplot(x = "Product_Name",     # Os dados são agrupados por esta variável
+            y= "Quantity",          
+            data=sale_Products)
+### Este gráfico de colunas mostrou os 10 produtos mais vendidos, sendo Staples o produto mais vendido
+
+# produtos mais vendidos nos EUA
+df.columns
+sale_Products_Country = df.groupby(["Product_Name","Country"])['Quantity'].aggregate(np.sum).reset_index().sort_values('Quantity',ascending = False)
+sale_Products_Country = df.groupby(["Product_Name","Country"])['Quantity'].sum().reset_index().sort_values('Quantity',ascending = False)
+sale_Products_Country
+type(sale_Products_Country)
+spc = sale_Products_Country[sale_Products_Country['Country'] == "United States"].sort_values('Quantity',ascending = False).head(20)
+sns.barplot(x = "Product_Name",     # Data is groupedby this variable
+            hue="Country",
+            y= "Quantity",          
+            data=spc)
+# produtos mais vendidos nos EUA 
+df.columns
+sale_Products_Country = df.groupby(["Product_Name","Country"])['Quantity'].aggregate(np.sum).reset_index().sort_values('Quantity',ascending = False)
+sale_Products_Country = df.groupby(["Product_Name","Country"])['Quantity'].sum().reset_index().sort_values('Quantity',ascending = False)
+sale_Products_Country
+type(sale_Products_Country)
+spc = sale_Products_Country[sale_Products_Country['Country'] == "United States"].sort_values('Quantity',ascending = False).head(20)
+sns.barplot(x = "Product_Name",     # Data is groupedby this variable
+            hue="Country",
+            y= "Quantity",          
+            data=spc)
+            
+ # vendas por categoria de produto, subcategoria
+sale_category = df.groupby(["Category","Sub_Category"])['Quantity'].aggregate(np.sum).reset_index().sort_values('Quantity',ascending = False)
+sale_category
+sns.barplot(x = "Category",     # Os dados foram agrupados por esta variável
+            hue="Sub_Category",
+            y= "Quantity",          
+            data=sale_category)           
+            
+### Analise de commodities para o apontamento os 10 principais itens de acordo com 'Product_ID' , "Vendas" e 'Lucros'   
+
+productId_count = df.groupby('Product_ID').count()['Customer_ID'].sort_values(ascending=False)
+productId_count.head(10)
+
+productId_amount = df.groupby('Product_ID').sum()['Sales'].sort_values(ascending=False)
+productId_amount.head(10)
+
+Abaixo mostrarei diferentes tipos de porcentagens de clientes em gráficos de pizza
+
+df["Segment"].value_counts().plot(kind='pie',shadow=True)
+
+# CONCLUSÃO:
+
+##### Pode-se notar que o lucro anual global deste supermercado está aumentando ano a ano, e seus negócios parecem estar indo bem. Enquanto isso, os lucros no segundo semestre do ano geralmente serão maiores do que os do primeiro semestre. Uma hipotese a ser confirmada para tal aumento são as promoções impulsionadas pela influência da Black Friday neste período.
+
+##### Percebemos que a região com o maior volume de vendas é a da Ásia (Pacífico). Identificou-se o Canadá como país de menor volume de vendas. Precisaríamos verificar mais a fundo os motivos da relutância do público canadense e desenvolver uma estratégia focada em melhorar a aceitabilidade por tais consumidores. Hipóteses a serem investigadas: (1) O Número de lojas é suficiente no Canadá? Lembramos que o Canadá é um país com território vasto e baixa densidade de população, será que a solução é abrir mais filiais? (2) É importante questionar a localização destas lojas se são adequadas e se a divulgação de tais pontos de atuação é suficiente. 
+
+##### A análise sobre as vendas de commodities apontaram: (1) A maior parte das vendas foi de material de escritório. (2) As maiores vendas são de eletrônicos e móveis, devido possuírem maior valor. (3) 50% dos 10 principais itens que proporcionam maior lucratividade são eletrônicos, então será melhor se concentrar em aumentar as vendas desses produtos, isso resultará em crescimento dos lucros gerais. Sugerimos para isso, eliminação da parcela equivalente a 1/5 (menos lucrativa) do número total. O valor antes utilizado para aquisição destes produtos será redirecionado para o incremento de novos itens de eletrônicos.
+
+##### A cadeia de lojas tem atuação a nível global e cada região possuem seu potencial de exploração. É necessário tomar ações para atender as necessidades mais específicas de cada uma destas. É imprescindível tratar de forma especial cada mercado e apartir deste estudo buscar novas soluções baseadas em uma melhor interação com os clientes. O sucesso das ações depende de existir um canal aberto de comunicação com o usuário final e de um ótimo pós venda.
+
+                
+                
